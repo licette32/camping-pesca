@@ -1,4 +1,4 @@
-import { createSolanaRpc } from "@solana/kit";
+﻿import { createSolanaRpc } from "@solana/kit";
 
 /*
 Un solo lugar para la red y para el objeto de lectura.
@@ -15,3 +15,4 @@ Las dos apuntan al mismo endpoint. Si cambias de red, se cambia aqui.
 export const ENDPOINT = import.meta.env.VITE_SOLANA_RPC_URL?.trim() || "https://api.devnet.solana.com";
 
 export const rpc = createSolanaRpc(ENDPOINT);
+

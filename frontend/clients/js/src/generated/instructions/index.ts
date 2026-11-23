@@ -6,8 +6,9 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./cambiarMonto";
-export * from "./crearCliente";
-export * from "./crearRegistro";
-export * from "./hacerDevolucion";
-export * from "./registrarVenta";
+export * from "./cancelarReserva";
+export * from "./cerrarParcela";
+export * from "./crearParcela";
+export * from "./crearReserva";
+export * from "./inicializarCamping";
+export * from "./modificarReserva";

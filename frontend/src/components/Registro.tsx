@@ -1,133 +1,96 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { address } from '@solana/kit';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import programa from '../config/programa.json';
-import { NEGOCIO_INICIAL, UNIDAD_MONTO } from '../config/interfaz';
-import { leerRegistro, type RegistroUI } from '../solana/lecturas';
-import { negocioValido } from '../solana/validaciones';
+import { NOMBRE_INICIAL } from '../config/interfaz';
+import { leerCamping, type CampingUI } from '../solana/lecturas';
 import { ErrorTransaccion, ErrorConfirmacionPendiente, enlaceTransaccion, traducir, type OpcionesEnvio } from '../solana/tx';
-import { crearRegistro, crearCliente, registrarVenta, cambiarMonto, hacerDevolucion } from '../solana/acciones';
+import { inicializarCamping, crearParcela, crearReserva, modificarReserva, cancelarReserva, cerrarParcela } from '../solana/acciones';
 
-type Operacion = 'registro' | 'cliente' | 'venta' | 'monto' | 'devolucion';
-const operaciones: { id: Operacion; texto: string }[] = [
-  { id: 'registro', texto: 'Crear registro' }, { id: 'cliente', texto: 'Crear cliente' },
-  { id: 'venta', texto: 'Registrar venta' }, { id: 'monto', texto: 'Corregir importe' },
-  { id: 'devolucion', texto: 'Devolución' },
+type Op = 'init' | 'parcela' | 'reservar' | 'modificar' | 'cancelar' | 'cerrar';
+const ops: { id: Op; texto: string }[] = [
+  { id: 'init', texto: 'Inicializar camping' }, { id: 'parcela', texto: 'Crear parcela' },
+  { id: 'reservar', texto: 'Crear reserva' }, { id: 'modificar', texto: 'Modificar reserva' },
+  { id: 'cancelar', texto: 'Cancelar reserva' }, { id: 'cerrar', texto: 'Cerrar parcela' },
 ];
 
-export function Registro({ onCambio, onOcupado }: { onCambio: () => void; onOcupado: (valor: boolean) => void }) {
-  const wallet = useWallet();
-  const { connection } = useConnection();
-  const walletDireccion = wallet.publicKey?.toBase58() ?? '';
-  const [negocio, setNegocio] = useState(NEGOCIO_INICIAL);
-  const [autoridad, setAutoridad] = useState(walletDireccion);
-  const [registro, setRegistro] = useState<RegistroUI | null>(null);
-  const [consultado, setConsultado] = useState(false);
-  const [leyendo, setLeyendo] = useState(false);
-  const [errorLectura, setErrorLectura] = useState('');
-  const [op, setOp] = useState<Operacion>('registro');
-  const [nombre, setNombre] = useState('Ana');
-  const [idCliente, setIdCliente] = useState('1');
-  const [sku, setSku] = useState('CAF01');
-  const [descripcion, setDescripcion] = useState('Cafe americano');
-  const [monto, setMonto] = useState('50');
-  const [ocupado, setOcupado] = useState(false);
-  const [fase, setFase] = useState('');
-  const [firma, setFirma] = useState('');
-  const [firmaFallida, setFirmaFallida] = useState('');
-  const [errorOperacion, setErrorOperacion] = useState('');
-  const [aviso, setAviso] = useState('');
-  const contexto = useRef('');
-  const secuencia = useRef(0);
-  contexto.current = negocio + '|' + autoridad;
-
-  useEffect(() => { setAutoridad(walletDireccion); }, [walletDireccion]);
-  useEffect(() => {
-    secuencia.current += 1; setRegistro(null); setConsultado(false); setErrorLectura('');
-    setLeyendo(false); setFirma(''); setFirmaFallida(''); setErrorOperacion(''); setAviso('');
-  }, [negocio, autoridad]);
+export function Registro({ onCambio, onOcupado }: { onCambio: () => void; onOcupado: (v: boolean) => void }) {
+  const wallet = useWallet(); const { connection } = useConnection();
+  const walletDir = wallet.publicKey?.toBase58() ?? '';
+  const [adminConsulta, setAdminConsulta] = useState(walletDir);
+  const [camping, setCamping] = useState<CampingUI | null>(null);
+  const [consultado, setConsultado] = useState(false); const [leyendo, setLeyendo] = useState(false); const [errorLectura, setErrorLectura] = useState('');
+  const [op, setOp] = useState<Op>('init');
+  const [nombre, setNombre] = useState(NOMBRE_INICIAL); const [sector, setSector] = useState('Muelle Norte'); const [capacidad, setCapacidad] = useState('4');
+  const [adminCamping, setAdminCamping] = useState(''); const [parcelaId, setParcelaId] = useState('1'); const [reservaId, setReservaId] = useState('1');
+  const [personas, setPersonas] = useState('2'); const [noches, setNoches] = useState('1');
+  const [ocupado, setOcupado] = useState(false); const [fase, setFase] = useState(''); const [firma, setFirma] = useState(''); const [firmaFallida, setFirmaFallida] = useState(''); const [errorOp, setErrorOp] = useState(''); const [aviso, setAviso] = useState('');
+  const ctx = useRef(''); const seq = useRef(0); ctx.current = adminConsulta;
+  useEffect(() => { setAdminConsulta(walletDir); setAdminCamping(walletDir); }, [walletDir]);
+  useEffect(() => { seq.current++; setCamping(null); setConsultado(false); setErrorLectura(''); setLeyendo(false); setFirma(''); setFirmaFallida(''); setErrorOp(''); setAviso(''); }, [adminConsulta]);
   useEffect(() => { onOcupado(ocupado); return () => onOcupado(false); }, [ocupado, onOcupado]);
 
-  async function cargar(nombreNegocio = negocio, owner = autoridad) {
-    const clave = nombreNegocio + '|' + owner;
-    const turno = ++secuencia.current;
-    setLeyendo(true); setErrorLectura('');
-    try {
-      const datos = await leerRegistro(negocioValido(nombreNegocio), address(owner.trim()));
-      if (turno === secuencia.current && contexto.current === clave) { setRegistro(datos); setConsultado(true); }
-    } catch (error) {
-      if (turno === secuencia.current) setErrorLectura(traducir(error));
-      throw error;
-    } finally { if (turno === secuencia.current) setLeyendo(false); }
+  async function cargar(owner = adminConsulta) {
+    const clave = owner; const turno = ++seq.current; setLeyendo(true); setErrorLectura('');
+    try { const datos = await leerCamping(address(owner.trim())); if (turno === seq.current && ctx.current === clave) { setCamping(datos); setConsultado(true); } }
+    catch (e) { if (turno === seq.current) setErrorLectura(traducir(e)); throw e; }
+    finally { if (turno === seq.current) setLeyendo(false); }
   }
 
-  async function ejecutar(evento: React.FormEvent) {
-    evento.preventDefault();
-    setOcupado(true); setFase('Preparando operación…'); setFirma(''); setFirmaFallida(''); setErrorOperacion(''); setAviso('');
-    const nombreNegocio = negocio.trim();
-    const direccionWallet = walletDireccion;
-    const opciones: OpcionesEnvio = { onEstado: (estado) => setFase(estado === 'firma' ? 'Revisa la solicitud en tu wallet…' : 'Esperando confirmación de la red…') };
+  async function ejecutar(e: React.FormEvent) {
+    e.preventDefault(); setOcupado(true); setFase('Preparando operacion...'); setFirma(''); setFirmaFallida(''); setErrorOp(''); setAviso('');
+    const opciones: OpcionesEnvio = { onEstado: (s) => setFase(s === 'firma' ? 'Revisa la solicitud en tu wallet...' : 'Esperando confirmacion de la red...') };
     try {
-      const id = Number(idCliente), importe = Number(monto);
-      let resultado: string;
-      switch (op) {
-        case 'registro': resultado = await crearRegistro(wallet, connection, nombreNegocio, opciones); break;
-        case 'cliente': resultado = await crearCliente(wallet, connection, nombreNegocio, nombre, opciones); break;
-        case 'venta': resultado = await registrarVenta(wallet, connection, nombreNegocio, id, sku, descripcion, importe, opciones); break;
-        case 'monto': resultado = await cambiarMonto(wallet, connection, nombreNegocio, id, sku, importe, opciones); break;
-        case 'devolucion': resultado = await hacerDevolucion(wallet, connection, nombreNegocio, id, sku, opciones); break;
-      }
-      setFirma(resultado); setFase('Operación confirmada correctamente.'); onCambio();
-      try { await cargar(nombreNegocio, direccionWallet); }
-      catch { setAviso('La operación se confirmó, pero no pudimos actualizar los datos. Pulsa Consultar registro para volver a leerlos.'); }
-    } catch (error) {
-      setFase(''); setErrorOperacion(traducir(error));
-      if (error instanceof ErrorTransaccion || error instanceof ErrorConfirmacionPendiente) setFirmaFallida(error.firma);
-    } finally { setOcupado(false); }
+      let r: string;
+      if (op === 'init') r = await inicializarCamping(wallet, connection, nombre, opciones);
+      else if (op === 'parcela') r = await crearParcela(wallet, connection, sector, Number(capacidad), opciones);
+      else if (op === 'reservar') r = await crearReserva(wallet, connection, adminCamping || adminConsulta, parcelaId, Number(personas), Number(noches), opciones);
+      else if (op === 'modificar') r = await modificarReserva(wallet, connection, adminCamping || adminConsulta, parcelaId, reservaId, Number(personas), Number(noches), opciones);
+      else if (op === 'cancelar') r = await cancelarReserva(wallet, connection, adminCamping || adminConsulta, parcelaId, reservaId, opciones);
+      else r = await cerrarParcela(wallet, connection, parcelaId, opciones);
+      setFirma(r); setFase('Operacion confirmada correctamente.'); onCambio();
+      try { await cargar(adminConsulta); } catch { setAviso('Operacion confirmada, pero no se pudo refrescar. Pulsa Consultar camping.'); }
+    } catch (err) { setFase(''); setErrorOp(traducir(err)); if (err instanceof ErrorTransaccion || err instanceof ErrorConfirmacionPendiente) setFirmaFallida(err.firma); }
+    finally { setOcupado(false); }
   }
 
-  const esOtraAutoridad = !!autoridad.trim() && autoridad.trim() !== walletDireccion;
-  const permiteEscribir = !programa.esReferencia && !!wallet.publicKey && !esOtraAutoridad;
+  const esOtra = !!adminConsulta.trim() && adminConsulta.trim() !== walletDir;
+  const puedeEscribir = !programa.esReferencia && !!wallet.publicKey && (op === 'reservar' || op === 'modificar' || op === 'cancelar' ? true : !esOtra);
   return <>
-    <div className="section-heading"><div><p className="eyebrow">NEGOCIO · CLIENTES · VENTAS</p><h2>Tu registro de ventas</h2></div><span className="tag">Cuentas independientes</span></div>
-    {programa.esReferencia && <aside className="notice information"><strong>Configura tu programa para comenzar.</strong><p>La aplicación incluye un IDL de referencia. Importa el exportado de tu despliegue para consultar el negocio y realizar operaciones. Las lecturas de saldo ya están disponibles en Conexión.</p></aside>}
-    <section className="panel lookup-panel">
-      <div className="panel-heading"><h3>Localizar el negocio</h3><span className="small-note">Lectura sin firma</span></div>
-      <div className="lookup-fields"><label>Nombre exacto del negocio<input value={negocio} disabled={ocupado} onChange={(e) => setNegocio(e.target.value)} placeholder="Cafe WayLearn D1" /></label>
-      <label>Dirección de la autoridad<input value={autoridad} disabled={ocupado} onChange={(e) => setAutoridad(e.target.value)} placeholder="Conecta tu wallet o pega una dirección pública" spellCheck={false} autoComplete="off" /></label>
-      <button className="button secondary" disabled={leyendo || ocupado || programa.esReferencia || !negocio.trim() || !autoridad.trim()} onClick={() => void cargar().catch(() => {})}>{leyendo ? 'Consultando…' : 'Consultar registro'}</button></div>
-      <p className="help">El nombre y la autoridad determinan la dirección del registro. Puedes consultar otra autoridad en modo lectura.</p>
+    <div className="section-heading"><div><p className="eyebrow">CAMPING - PARCELAS - RESERVAS</p><h2>Reservas de camping de pesca</h2></div><span className="tag">PDAs relacionadas</span></div>
+    {programa.esReferencia && <aside className="notice information"><strong>Configura tu programa para comenzar.</strong><p>Importa el IDL de tu despliegue en Devnet para habilitar escrituras.</p></aside>}
+    <section className="panel lookup-panel"><div className="panel-heading"><h3>Localizar camping</h3><span className="small-note">Lectura sin firma</span></div>
+      <div className="lookup-fields"><label>Admin del camping<input value={adminConsulta} disabled={ocupado} onChange={(e)=>setAdminConsulta(e.target.value)} placeholder="Wallet admin" spellCheck={false} /></label><button className="button secondary" disabled={leyendo||ocupado||programa.esReferencia||!adminConsulta.trim()} onClick={()=>void cargar().catch(()=>{})}>{leyendo?'Consultando...':'Consultar camping'}</button></div>
+      <p className="help">PDAs: camping <code>["camping", admin]</code>, parcela <code>["parcela", camping, id_u64]</code>, reserva <code>["reserva", parcela, id_u64]</code>.</p>
       {errorLectura && <p className="notice error" role="alert">{errorLectura}</p>}
     </section>
     <div className="workspace-grid">
-      <section className="panel customers-panel"><div className="panel-heading"><h3>Clientes y ventas</h3>{registro && <span className="count">{registro.clientes.length} clientes</span>}</div>
-        {!registro ? <div className="empty-state"><span className="empty-symbol">◎</span><h4>{consultado ? 'El registro todavía no existe' : 'El negocio aparecerá aquí'}</h4><p>{consultado ? 'Comprueba el nombre y la autoridad, o crea un registro con tu wallet conectada.' : 'Consulta el registro para ver sus clientes y las ventas activas de cada uno.'}</p></div> : <>
-          <div className="registry-summary"><div><span className="label">Negocio</span><strong>{registro.nombreNegocio}</strong></div><div><span className="label">Último ID asignado</span><strong>{registro.idCounter}</strong></div></div>
-          <details className="technical-details"><summary>Dirección del registro</summary><code className="address">{registro.direccion}</code></details>
-          {registro.clientes.length === 0 ? <p className="empty-line">Todavía no hay clientes. Puedes crear el primero desde Operaciones.</p> : registro.clientes.map((cliente) => <article className="customer" key={cliente.direccion}>
-            <header><div><strong>{cliente.nombre}</strong><span className="small-note">Cliente #{cliente.idCliente} · {cliente.compras} ventas activas</span></div><button className="text-button" disabled={ocupado} onClick={() => { setIdCliente(String(cliente.idCliente)); setOp('venta'); }}>Seleccionar</button></header>
-            {cliente.ventas.length === 0 ? <p className="empty-line">Sin ventas activas.</p> : <div className="table-wrap"><table><thead><tr><th>SKU</th><th>Descripción</th><th className="numeric">Importe</th></tr></thead><tbody>{cliente.ventas.map((venta) => <tr key={venta.direccion} onClick={() => { if (!ocupado) { setIdCliente(String(cliente.idCliente)); setSku(venta.sku); setMonto(String(venta.monto)); setOp('monto'); } }}><td><code>{venta.sku}</code></td><td>{venta.descripcion}</td><td className="numeric">{venta.monto.toLocaleString('es-MX')} <small>{UNIDAD_MONTO}</small></td></tr>)}</tbody></table></div>}
+      <section className="panel customers-panel"><div className="panel-heading"><h3>Parcelas y reservas</h3>{camping && <span className="count">{camping.parcelas.length} parcelas</span>}</div>
+        {!camping ? <div className="empty-state"><span className="empty-symbol">[]</span><h4>{consultado?'Camping no encontrado':'Consulta un camping'}</h4><p>{consultado?'Inicializa un camping con la wallet admin.':'Ingresa el admin y consulta.'}</p></div> : <>
+          <div className="registry-summary"><div><span className="label">Camping</span><strong>{camping.nombre}</strong></div><div><span className="label">Total parcelas</span><strong>{camping.totalParcelas.toString()}</strong></div></div>
+          <details className="technical-details"><summary>Direccion camping</summary><code className="address">{camping.direccion}</code></details>
+          {camping.parcelas.length===0 ? <p className="empty-line">Sin parcelas. Crea la primera.</p> : camping.parcelas.map(p => <article className="customer" key={p.direccion}>
+            <header><div><strong>Parcela #{p.id.toString()} - {p.sector}</strong><span className="small-note">Cap {p.capacidadPersonas} pers. | Activas {p.reservasActivas.toString()} | Total {p.totalReservas.toString()}</span></div>
+            <button className="text-button" disabled={ocupado} onClick={()=>{setParcelaId(p.id.toString()); setAdminCamping(camping.admin); setOp('reservar');}}>Reservar</button></header>
+            {p.reservas.length===0 ? <p className="empty-line">Sin reservas registradas.</p> : <div className="table-wrap"><table><thead><tr><th>ID</th><th>Pescador</th><th>Pers.</th><th>Noches</th></tr></thead><tbody>{p.reservas.map(r => <tr key={r.direccion} onClick={()=>{ if(!ocupado){ setParcelaId(p.id.toString()); setReservaId(r.id.toString()); setPersonas(String(r.cantidadPersonas)); setNoches(String(r.noches)); setAdminCamping(camping.admin); setOp('modificar'); } }}><td>#{r.id.toString()}</td><td><code className="address">{r.pescador.slice(0,4)}...{r.pescador.slice(-4)}</code></td><td>{r.cantidadPersonas}</td><td>{r.noches}</td></tr>)}</tbody></table></div>}
           </article>)}
         </>}
       </section>
       <section className="panel operations-panel"><div className="panel-heading"><h3>Operaciones</h3><span className="small-note">Con firma</span></div>
-        <div className="operation-tabs">{operaciones.map((item) => <button key={item.id} className={op === item.id ? 'active' : ''} disabled={ocupado} onClick={() => { setOp(item.id); setFirma(''); setErrorOperacion(''); setFirmaFallida(''); setFase(''); }}>{item.texto}</button>)}</div>
-        <form onSubmit={ejecutar}>
-          <fieldset disabled={ocupado || !permiteEscribir}>
-            {op === 'registro' && <p className="help">Crearás un registro para <strong>{negocio || 'tu negocio'}</strong> con la wallet conectada como autoridad.</p>}
-            {op === 'cliente' && <label>Nombre del cliente<input value={nombre} onChange={(e) => setNombre(e.target.value)} required /></label>}
-            {(op === 'venta' || op === 'monto' || op === 'devolucion') && <div className="two-fields"><label>ID del cliente<input type="number" min="1" max="65535" step="1" value={idCliente} onChange={(e) => setIdCliente(e.target.value)} required /></label><label>SKU<input value={sku} onChange={(e) => setSku(e.target.value)} required /></label></div>}
-            {op === 'venta' && <label>Descripción<input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} required /></label>}
-            {(op === 'venta' || op === 'monto') && <label>{op === 'monto' ? 'Nuevo importe' : 'Importe'}<input type="number" min="1" max="4294967295" step="1" value={monto} onChange={(e) => setMonto(e.target.value)} required /><span className="help">Unidades enteras del ejercicio. No representa una transferencia de SOL.</span></label>}
-            {op === 'devolucion' && <p className="notice subtle">Esta operación quita la venta del historial y cierra su cuenta. No realiza un reembolso comercial.</p>}
-            <button className="button primary" type="submit" disabled={!negocio.trim()}>{ocupado ? 'Operación en curso…' : operaciones.find((item) => item.id === op)!.texto}</button>
-          </fieldset>
-        </form>
-        {!wallet.publicKey && <p className="help">Conecta tu wallet de práctica para realizar operaciones.</p>}
-        {esOtraAutoridad && wallet.publicKey && <p className="notice subtle">Estás consultando otra autoridad. Para escribir, utiliza el registro de la wallet conectada.</p>}
+        <div className="operation-tabs">{ops.map(o => <button key={o.id} className={op===o.id?'active':''} disabled={ocupado} onClick={()=>{setOp(o.id); setFirma(''); setErrorOp(''); setFirmaFallida(''); setFase('');}}>{o.texto}</button>)}</div>
+        <form onSubmit={ejecutar}><fieldset disabled={ocupado || !puedeEscribir}>
+          {op==='init' && <label>Nombre del camping<input value={nombre} onChange={e=>setNombre(e.target.value)} maxLength={32} required /></label>}
+          {op==='parcela' && <><label>Sector<input value={sector} onChange={e=>setSector(e.target.value)} maxLength={24} required /></label><label>Capacidad personas (1-10)<input type="number" min={1} max={10} value={capacidad} onChange={e=>setCapacidad(e.target.value)} required /></label></>}
+          {(op==='reservar'||op==='modificar'||op==='cancelar') && <><label>Admin del camping<input value={adminCamping} onChange={e=>setAdminCamping(e.target.value)} required /><span className="help">Para derivar la PDA del camping/parcela.</span></label><label>ID parcela<input value={parcelaId} onChange={e=>setParcelaId(e.target.value)} required /></label></>}
+          {(op==='modificar'||op==='cancelar') && <label>ID reserva<input value={reservaId} onChange={e=>setReservaId(e.target.value)} required /></label>}
+          {(op==='reservar'||op==='modificar') && <><label>Cantidad personas<input type="number" min={1} max={255} value={personas} onChange={e=>setPersonas(e.target.value)} required /><span className="help">Aporte propio: no debe exceder capacidad de la parcela.</span></label><label>Noches<input type="number" min={1} max={255} value={noches} onChange={e=>setNoches(e.target.value)} required /></label></>}
+          {op==='cerrar' && <label>ID parcela<input value={parcelaId} onChange={e=>setParcelaId(e.target.value)} required /><span className="help">Solo admin. Falla si reservas_activas != 0.</span></label>}
+          <button className="button primary" type="submit">{ocupado?'Operacion en curso...':ops.find(o=>o.id===op)!.texto}</button>
+        </fieldset></form>
+        {!wallet.publicKey && <p className="help">Conecta tu wallet para operar.</p>}
         {ocupado && <p className="notice information" role="status">{fase}</p>}
-        {firma && <p className="notice success" role="status"><strong>Operación confirmada.</strong><br/><a href={enlaceTransaccion(firma)} target="_blank" rel="noreferrer">Ver transacción en Explorer</a></p>}
-        {errorOperacion && <p className="notice error" role="alert">{errorOperacion}{firmaFallida && <><br/><a href={enlaceTransaccion(firmaFallida)} target="_blank" rel="noreferrer">Revisar transacción en Explorer</a></>}</p>}
+        {firma && <p className="notice success" role="status"><strong>Operacion confirmada.</strong><br/><a href={enlaceTransaccion(firma)} target="_blank" rel="noreferrer">Ver transaccion en Explorer</a></p>}
+        {errorOp && <p className="notice error" role="alert">{errorOp}{firmaFallida && <><br/><a href={enlaceTransaccion(firmaFallida)} target="_blank" rel="noreferrer">Revisar transaccion en Explorer</a></>}</p>}
         {aviso && <p className="notice subtle">{aviso}</p>}
       </section>
     </div>

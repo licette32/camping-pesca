@@ -1,98 +1,27 @@
-import type { Address } from "@solana/kit";
-
-import {
-  fetchAllCliente,
-  fetchAllVenta,
-  fetchMaybeRegistro,
-} from "../../clients/js/src/generated";
+﻿import type { Address } from "@solana/kit";
+import { fetchAllMaybeParcela, fetchAllMaybeReserva, fetchMaybeCamping } from "../../clients/js/src/generated";
 import { rpc } from "./conexion";
-import { pdaRegistro } from "./pdas";
+import { pdaCamping, pdaParcela, pdaReserva } from "./pdas";
 
-/*
-LECTURAS — ya resueltas
+export type ReservaUI = { direccion: Address; id: bigint; pescador: Address; cantidadPersonas: number; noches: number };
+export type ParcelaUI = { direccion: Address; id: bigint; sector: string; capacidadPersonas: number; reservasActivas: bigint; totalReservas: bigint; reservas: ReservaUI[] };
+export type CampingUI = { direccion: Address; admin: Address; nombre: string; totalParcelas: bigint; parcelas: ParcelaUI[] };
 
-Leer no necesita wallet ni firma: solo el rpc. Estas funciones vienen escritas
-para que el dia 4 puedas concentrarte en la escritura.
-
-Fijate en la forma del resultado: fetchX devuelve { address, data, lamports... }
-y los campos de la cuenta estan dentro de .data, nunca sueltos en la raiz.
-*/
-
-export type ClienteUI = {
-  direccion: Address;
-  idCliente: number;
-  nombre: string;
-  compras: number;
-  ventas: { direccion: Address; sku: string; descripcion: string; monto: number }[];
-};
-
-export type RegistroUI = {
-  direccion: Address;
-  nombreNegocio: string;
-  idCounter: number;
-  clientes: ClienteUI[];
-};
-
-/*
-Tres niveles de cuentas, tres niveles de lectura: el registro guarda las
-direcciones de sus clientes, y cada cliente las de sus ventas. Esa es la
-contrapartida del modelo: una cuenta por entidad se paga con una lectura
-por entidad.
-
-fetchMaybe... no lanza si la cuenta no existe: devuelve exists: false. Es lo
-que quieres cuando el usuario todavia no ha creado su registro.
-*/
-export async function leerRegistro(
-  nombreNegocio: string,
-  owner: Address
-): Promise<RegistroUI | null> {
-  const direccion = pdaRegistro(nombreNegocio, owner);
-  const cuenta = await fetchMaybeRegistro(rpc, direccion);
-
+export async function leerCamping(admin: Address): Promise<CampingUI | null> {
+  const direccion = pdaCamping(admin);
+  const cuenta = await fetchMaybeCamping(rpc, direccion);
   if (!cuenta.exists) return null;
-
-  const clientes = await fetchAllCliente(rpc, cuenta.data.clientes);
-
-  const conVentas = await Promise.all(
-    clientes.map(async (c) => {
-      const ventas = await fetchAllVenta(rpc, c.data.historial);
-      return {
-        direccion: c.address,
-        idCliente: c.data.idCliente,
-        nombre: c.data.nombre,
-        compras: c.data.compras,
-        ventas: ventas.map((v) => ({
-          direccion: v.address,
-          sku: v.data.sku,
-          descripcion: v.data.descripcion,
-          monto: v.data.monto,
-        })),
-      };
-    })
-  );
-
-  return {
-    direccion,
-    nombreNegocio: cuenta.data.nombreNegocio,
-    idCounter: cuenta.data.idCounter,
-    clientes: conVentas,
-  };
-}
-
-/*
-El id del cliente nuevo sale del contador del registro.
-
-El programa es quien lo asigna; esta lectura no se lo manda. Hace falta porque
-el id entra en las semillas, y una transaccion de Solana declara por adelantado
-todas las cuentas que va a tocar: hay que saber la direccion ANTES de firmar.
-*/
-export async function siguienteId(
-  nombreNegocio: string,
-  owner: Address
-): Promise<number> {
-  const cuenta = await fetchMaybeRegistro(rpc, pdaRegistro(nombreNegocio, owner));
-  if (!cuenta.exists) throw new Error("Ese registro no existe todavia.");
-  if (cuenta.data.clientes.length >= 10) throw new Error("El registro alcanzó las 10 referencias de clientes previstas para el ejercicio.");
-  if (cuenta.data.idCounter >= 65_535) throw new Error("Se agotaron los identificadores u16 del registro.");
-  return cuenta.data.idCounter + 1;
+  const total = Number(cuenta.data.totalParcelas);
+  const dirsParcelas = Array.from({ length: total }, (_, i) => pdaParcela(direccion, i + 1));
+  const cuentasParcelas = dirsParcelas.length ? await fetchAllMaybeParcela(rpc, dirsParcelas) : [];
+  const parcelas: ParcelaUI[] = [];
+  for (const p of cuentasParcelas) {
+    if (!p.exists) continue;
+    const totalRes = Number(p.data.totalReservas);
+    const dirsRes = Array.from({ length: totalRes }, (_, i) => pdaReserva(p.address, i + 1));
+    const cuentasRes = dirsRes.length ? await fetchAllMaybeReserva(rpc, dirsRes) : [];
+    const reservas = cuentasRes.flatMap(r => r.exists ? [{ direccion: r.address, id: r.data.id, pescador: r.data.pescador, cantidadPersonas: r.data.cantidadPersonas, noches: r.data.noches }] : []);
+    parcelas.push({ direccion: p.address, id: p.data.id, sector: p.data.sector, capacidadPersonas: p.data.capacidadPersonas, reservasActivas: p.data.reservasActivas, totalReservas: p.data.totalReservas, reservas });
+  }
+  return { direccion, admin: cuenta.data.admin, nombre: cuenta.data.nombre, totalParcelas: cuenta.data.totalParcelas, parcelas };
 }

@@ -1,5 +1,5 @@
 {
-  "name": "registro-ventas-solana-app",
+  "name": "camping-pesca-solana-app",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -46,3 +46,5 @@
     "node": ">=22.12.0 <25"
   }
 }
+
+

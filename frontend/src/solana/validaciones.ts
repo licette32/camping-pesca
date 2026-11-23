@@ -1,22 +1,21 @@
-export function texto(valor: string, etiqueta: string, maxBytes: number): string {
+﻿export function texto(valor: string, etiqueta: string, maxBytes: number): string {
   const limpio = valor.trim();
   if (!limpio) throw new Error(etiqueta + ' es obligatorio.');
-  if (new TextEncoder().encode(limpio).length > maxBytes) {
-    throw new Error(etiqueta + ' admite hasta ' + maxBytes + ' bytes UTF-8.');
-  }
+  if (new TextEncoder().encode(limpio).length > maxBytes) throw new Error(etiqueta + ' admite hasta ' + maxBytes + ' bytes UTF-8.');
   return limpio;
 }
-
-export function entero(valor: number, etiqueta: string, maximo: number): number {
-  if (!Number.isSafeInteger(valor) || valor < 1 || valor > maximo) {
-    throw new Error(etiqueta + ' debe ser un entero entre 1 y ' + maximo + '.');
-  }
+export function u8Rango(valor: number, etiqueta: string, min: number, max: number): number {
+  if (!Number.isSafeInteger(valor) || valor < min || valor > max) throw new Error(etiqueta + ' debe estar entre ' + min + ' y ' + max + '.');
   return valor;
 }
-
-export const negocioValido = (valor: string) => texto(valor, 'El nombre del negocio', 30);
-export const nombreValido = (valor: string) => texto(valor, 'El nombre del cliente', 30);
-export const skuValido = (valor: string) => texto(valor, 'El SKU', 5);
-export const descripcionValida = (valor: string) => texto(valor, 'La descripción', 50);
-export const idValido = (valor: number) => entero(valor, 'El identificador', 65_535);
-export const montoValido = (valor: number) => entero(valor, 'El monto', 4_294_967_295);
+export function u64Positivo(valor: bigint | number | string, etiqueta: string): bigint {
+  const n = typeof valor === 'bigint' ? valor : BigInt(String(valor).trim());
+  if (n < 1n || n > 18446744073709551615n) throw new Error(etiqueta + ' debe ser un entero u64 positivo.');
+  return n;
+}
+export const nombreCampingValido = (v: string) => texto(v, 'El nombre del camping', 32);
+export const sectorValido = (v: string) => texto(v, 'El sector', 24);
+export const capacidadValida = (v: number) => u8Rango(v, 'La capacidad', 1, 10);
+export const personasValidas = (v: number) => u8Rango(v, 'La cantidad de personas', 1, 255);
+export const nochesValidas = (v: number) => u8Rango(v, 'Las noches', 1, 255);
+export const idValido = (v: bigint | number | string) => u64Positivo(v, 'El id');

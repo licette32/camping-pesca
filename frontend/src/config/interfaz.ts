@@ -1,4 +1,2 @@
-// Tres cambios pequeños para familiarizarte con el proyecto.
-export const TITULO_APP = 'Registro de ventas';
-export const NEGOCIO_INICIAL = 'Cafe WayLearn D1';
-export const UNIDAD_MONTO = 'unidades';
+﻿export const TITULO_APP = 'Camping de Pesca';
+export const NOMBRE_INICIAL = 'Camping Lago Azul';

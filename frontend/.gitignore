@@ -1,4 +1,4 @@
-node_modules/
+﻿node_modules/
 dist/
 .aula/
 .env
@@ -6,6 +6,6 @@ dist/
 .env.*.local
 *.tsbuildinfo
 *.log
-# idl.json y clients/ SI se versionan: permiten reproducir la entrega.
 # Nunca subas keypairs, frases de recuperacion ni archivos de wallets.
 *-keypair.json
+

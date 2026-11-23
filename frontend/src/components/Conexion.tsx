@@ -25,14 +25,14 @@ export function Conexion({ revision }: { revision: number }) {
         <div className="panel-heading"><h3>Tu wallet</h3><span className="status-dot" data-on={!!publicKey} /></div>
         {publicKey ? <>
           <p className="label">Dirección de Solana</p><code className="address">{publicKey.toBase58()}</code>
-          <p className="balance">{saldo === null ? '—' : formato(saldo)} <span>SOL de prueba</span></p>
+          <p className="balance">{saldo === null ? '—' : formato(saldo)} <span>SOL</span></p>
           <button className="button secondary" onClick={() => setRecarga((valor) => valor + 1)}>Actualizar saldo</button>
         </> : <div className="empty-state"><span className="empty-symbol"><Icono tipo="conexion" /></span><h4>Conecta tu wallet de práctica</h4><p>Utiliza el botón de la parte superior. Después podrás consultar su saldo y autorizar operaciones en Devnet.</p></div>}
         {error && <p className="notice error" role="alert">{error}</p>}
       </section>
       <SaldoPublico />
     </div>
-    <aside className="explanation"><strong>Leer y firmar son acciones distintas.</strong><p>Consultar una dirección pública no requiere conectar una wallet. Para modificar el registro, la autoridad correspondiente deberá firmar.</p><a href="https://faucet.solana.com/" target="_blank" rel="noreferrer">Obtener SOL de prueba</a></aside>
+    <aside className="explanation"><strong>Lectura y firma son acciones distintas.</strong><p>Consultar una dirección pública no requiere wallet. Las operaciones que modifican cuentas requieren la firma de la autoridad correspondiente.</p><a href="https://faucet.solana.com/" target="_blank" rel="noreferrer">Obtener SOL de prueba</a></aside>
   </>;
 }
 

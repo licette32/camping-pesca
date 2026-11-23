@@ -17,12 +17,18 @@ import {
   fetchEncodedAccounts,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressDecoder,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
+  getU64Decoder,
+  getU64Encoder,
+  getU8Decoder,
+  getU8Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
   transformEncoder,
@@ -43,116 +49,124 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-export const VENTA_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
-  46, 19, 228, 71, 14, 149, 86, 78,
+export const CAMPING_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([
+  213, 208, 149, 1, 37, 36, 210, 171,
 ]);
 
-export function getVentaDiscriminatorBytes(): ReadonlyUint8Array {
-  return fixEncoderSize(getBytesEncoder(), 8).encode(VENTA_DISCRIMINATOR);
+export function getCampingDiscriminatorBytes(): ReadonlyUint8Array {
+  return fixEncoderSize(getBytesEncoder(), 8).encode(CAMPING_DISCRIMINATOR);
 }
 
-export type Venta = {
+export type Camping = {
   discriminator: ReadonlyUint8Array;
-  sku: string;
-  descripcion: string;
-  monto: number;
+  admin: Address;
+  nombre: string;
+  totalParcelas: bigint;
+  bump: number;
 };
 
-export type VentaArgs = { sku: string; descripcion: string; monto: number };
+export type CampingArgs = {
+  admin: Address | HasAddress;
+  nombre: string;
+  totalParcelas: number | bigint;
+  bump: number;
+};
 
-/** Gets the encoder for {@link VentaArgs} account data. */
-export function getVentaEncoder(): Encoder<VentaArgs> {
+/** Gets the encoder for {@link CampingArgs} account data. */
+export function getCampingEncoder(): Encoder<CampingArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["sku", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ["descripcion", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ["monto", getU32Encoder()],
+      ["admin", getAddressEncoder()],
+      ["nombre", addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ["totalParcelas", getU64Encoder()],
+      ["bump", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: VENTA_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: CAMPING_DISCRIMINATOR }),
   );
 }
 
-/** Gets the decoder for {@link Venta} account data. */
-export function getVentaDecoder(): Decoder<Venta> {
+/** Gets the decoder for {@link Camping} account data. */
+export function getCampingDecoder(): Decoder<Camping> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["sku", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["descripcion", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ["monto", getU32Decoder()],
+    ["admin", getAddressDecoder()],
+    ["nombre", addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ["totalParcelas", getU64Decoder()],
+    ["bump", getU8Decoder()],
   ]);
 }
 
-/** Gets the codec for {@link Venta} account data. */
-export function getVentaCodec(): Codec<VentaArgs, Venta> {
-  return combineCodec(getVentaEncoder(), getVentaDecoder());
+/** Gets the codec for {@link Camping} account data. */
+export function getCampingCodec(): Codec<CampingArgs, Camping> {
+  return combineCodec(getCampingEncoder(), getCampingDecoder());
 }
 
-export function decodeVenta<TAddress extends string = string>(
+export function decodeCamping<TAddress extends string = string>(
   encodedAccount: EncodedAccount<TAddress>,
-): Account<Venta, TAddress>;
-export function decodeVenta<TAddress extends string = string>(
+): Account<Camping, TAddress>;
+export function decodeCamping<TAddress extends string = string>(
   encodedAccount: MaybeEncodedAccount<TAddress>,
-): MaybeAccount<Venta, TAddress>;
-export function decodeVenta<TAddress extends string = string>(
+): MaybeAccount<Camping, TAddress>;
+export function decodeCamping<TAddress extends string = string>(
   encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
-): Account<Venta, TAddress> | MaybeAccount<Venta, TAddress> {
+): Account<Camping, TAddress> | MaybeAccount<Camping, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getVentaDecoder(),
+    getCampingDecoder(),
   );
 }
 
-export async function fetchVenta<TAddress extends string = string>(
+export async function fetchCamping<TAddress extends string = string>(
   rpc:
     | Parameters<typeof fetchEncodedAccount>[0]
     | ClientWithRpc<GetAccountInfoApi>,
   address: Address<TAddress> | HasAddress<TAddress>,
   config?: FetchAccountConfig,
-): Promise<Account<Venta, TAddress>> {
-  const maybeAccount = await fetchMaybeVenta(rpc, address, config);
+): Promise<Account<Camping, TAddress>> {
+  const maybeAccount = await fetchMaybeCamping(rpc, address, config);
   assertAccountExists(maybeAccount);
   return maybeAccount;
 }
 
-export async function fetchMaybeVenta<TAddress extends string = string>(
+export async function fetchMaybeCamping<TAddress extends string = string>(
   rpc:
     | Parameters<typeof fetchEncodedAccount>[0]
     | ClientWithRpc<GetAccountInfoApi>,
   address: Address<TAddress> | HasAddress<TAddress>,
   config?: FetchAccountConfig,
-): Promise<MaybeAccount<Venta, TAddress>> {
+): Promise<MaybeAccount<Camping, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(
     "rpc" in rpc ? rpc.rpc : rpc,
     typeof address === "string" ? address : address.address,
     config,
   );
-  return decodeVenta(maybeAccount);
+  return decodeCamping(maybeAccount);
 }
 
-export async function fetchAllVenta(
+export async function fetchAllCamping(
   rpc:
     | Parameters<typeof fetchEncodedAccounts>[0]
     | ClientWithRpc<GetMultipleAccountsApi>,
   addresses: Array<Address | HasAddress>,
   config?: FetchAccountsConfig,
-): Promise<Account<Venta>[]> {
-  const maybeAccounts = await fetchAllMaybeVenta(rpc, addresses, config);
+): Promise<Account<Camping>[]> {
+  const maybeAccounts = await fetchAllMaybeCamping(rpc, addresses, config);
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
 }
 
-export async function fetchAllMaybeVenta(
+export async function fetchAllMaybeCamping(
   rpc:
     | Parameters<typeof fetchEncodedAccounts>[0]
     | ClientWithRpc<GetMultipleAccountsApi>,
   addresses: Array<Address | HasAddress>,
   config?: FetchAccountsConfig,
-): Promise<MaybeAccount<Venta>[]> {
+): Promise<MaybeAccount<Camping>[]> {
   const maybeAccounts = await fetchEncodedAccounts(
     "rpc" in rpc ? rpc.rpc : rpc,
     addresses.map((a) => (typeof a === "string" ? a : a.address)),
     config,
   );
-  return maybeAccounts.map((maybeAccount) => decodeVenta(maybeAccount));
+  return maybeAccounts.map((maybeAccount) => decodeCamping(maybeAccount));
 }

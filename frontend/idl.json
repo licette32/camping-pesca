@@ -1,58 +1,382 @@
 {
-  "version": "0.1.0",
-  "name": "registro",
+  "address": "EVCkpvMZhRSFcKTFBdUnBvf4exj88dPopsGawfY7sPXD",
   "metadata": {
-    "address": "38oTMyvUTmqkBQeMiuok5F2mPjp9dVadWdBeQTDNmTUY"
+    "name": "camping_pesca",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Reservas de Camping de Pesca - Anchor program"
   },
   "instructions": [
     {
-      "name": "crearRegistro",
+      "name": "cancelar_reserva",
+      "discriminator": [
+        32,
+        163,
+        113,
+        83,
+        88,
+        129,
+        105,
+        187
+      ],
       "accounts": [
         {
-          "name": "owner",
-          "isMut": true,
-          "isSigner": true
+          "name": "parcela",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  99,
+                  101,
+                  108,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parcela.camping",
+                "account": "Parcela"
+              },
+              {
+                "kind": "account",
+                "path": "parcela.id",
+                "account": "Parcela"
+              }
+            ]
+          },
+          "relations": [
+            "reserva"
+          ]
         },
         {
-          "name": "registro",
-          "isMut": true,
-          "isSigner": false
+          "name": "reserva",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  101,
+                  114,
+                  118,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parcela"
+              },
+              {
+                "kind": "account",
+                "path": "reserva.id",
+                "account": "Reserva"
+              }
+            ]
+          }
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          "name": "pescador",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "reserva"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cerrar_parcela",
+      "discriminator": [
+        158,
+        142,
+        136,
+        183,
+        199,
+        145,
+        169,
+        197
+      ],
+      "accounts": [
+        {
+          "name": "camping",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "admin"
+              }
+            ]
+          },
+          "relations": [
+            "parcela"
+          ]
+        },
+        {
+          "name": "parcela",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  99,
+                  101,
+                  108,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "camping"
+              },
+              {
+                "kind": "account",
+                "path": "parcela.id",
+                "account": "Parcela"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "camping"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "crear_parcela",
+      "discriminator": [
+        16,
+        13,
+        101,
+        45,
+        42,
+        128,
+        252,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "camping",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "admin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "parcela",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "camping"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "nombreNegocio",
+          "name": "sector",
           "type": "string"
+        },
+        {
+          "name": "capacidad_personas",
+          "type": "u8"
         }
       ]
     },
     {
-      "name": "crearCliente",
+      "name": "crear_reserva",
+      "discriminator": [
+        181,
+        129,
+        72,
+        218,
+        85,
+        87,
+        163,
+        197
+      ],
       "accounts": [
         {
-          "name": "owner",
-          "isMut": true,
-          "isSigner": true
+          "name": "camping",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "camping.admin",
+                "account": "Camping"
+              }
+            ]
+          },
+          "relations": [
+            "parcela"
+          ]
         },
         {
-          "name": "registro",
-          "isMut": true,
-          "isSigner": false
+          "name": "parcela",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  99,
+                  101,
+                  108,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "camping"
+              },
+              {
+                "kind": "account",
+                "path": "parcela.id",
+                "account": "Parcela"
+              }
+            ]
+          }
         },
         {
-          "name": "cliente",
-          "isMut": true,
-          "isSigner": false
+          "name": "reserva",
+          "writable": true
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          "name": "pescador",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "cantidad_personas",
+          "type": "u8"
+        },
+        {
+          "name": "noches",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "inicializar_camping",
+      "discriminator": [
+        48,
+        158,
+        184,
+        171,
+        172,
+        85,
+        169,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "camping",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  105,
+                  110,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "admin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -63,212 +387,289 @@
       ]
     },
     {
-      "name": "registrarVenta",
+      "name": "modificar_reserva",
+      "discriminator": [
+        132,
+        68,
+        143,
+        22,
+        151,
+        32,
+        92,
+        2
+      ],
       "accounts": [
         {
-          "name": "owner",
-          "isMut": true,
-          "isSigner": true
+          "name": "parcela",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  114,
+                  99,
+                  101,
+                  108,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parcela.camping",
+                "account": "Parcela"
+              },
+              {
+                "kind": "account",
+                "path": "parcela.id",
+                "account": "Parcela"
+              }
+            ]
+          },
+          "relations": [
+            "reserva"
+          ]
         },
         {
-          "name": "registro",
-          "isMut": false,
-          "isSigner": false
+          "name": "reserva",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  101,
+                  114,
+                  118,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "parcela"
+              },
+              {
+                "kind": "account",
+                "path": "reserva.id",
+                "account": "Reserva"
+              }
+            ]
+          }
         },
         {
-          "name": "cliente",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "venta",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          "name": "pescador",
+          "signer": true,
+          "relations": [
+            "reserva"
+          ]
         }
       ],
       "args": [
         {
-          "name": "idCliente",
-          "type": "u16"
+          "name": "nuevas_personas",
+          "type": "u8"
         },
         {
-          "name": "sku",
-          "type": "string"
-        },
-        {
-          "name": "descripcion",
-          "type": "string"
-        },
-        {
-          "name": "monto",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "hacerDevolucion",
-      "accounts": [
-        {
-          "name": "owner",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "registro",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "cliente",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "venta",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "idCliente",
-          "type": "u16"
-        },
-        {
-          "name": "sku",
-          "type": "string"
-        }
-      ]
-    },
-    {
-      "name": "cambiarMonto",
-      "accounts": [
-        {
-          "name": "owner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "registro",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "cliente",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "venta",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "idCliente",
-          "type": "u16"
-        },
-        {
-          "name": "sku",
-          "type": "string"
-        },
-        {
-          "name": "nuevoMonto",
-          "type": "u32"
+          "name": "nuevas_noches",
+          "type": "u8"
         }
       ]
     }
   ],
   "accounts": [
     {
-      "name": "Registro",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "nombreNegocio",
-            "type": "string"
-          },
-          {
-            "name": "clientes",
-            "type": {
-              "vec": "publicKey"
-            }
-          },
-          {
-            "name": "idCounter",
-            "type": "u16"
-          }
-        ]
-      }
+      "name": "Camping",
+      "discriminator": [
+        213,
+        208,
+        149,
+        1,
+        37,
+        36,
+        210,
+        171
+      ]
     },
     {
-      "name": "Cliente",
+      "name": "Parcela",
+      "discriminator": [
+        174,
+        114,
+        101,
+        144,
+        59,
+        28,
+        50,
+        134
+      ]
+    },
+    {
+      "name": "Reserva",
+      "discriminator": [
+        104,
+        191,
+        103,
+        32,
+        224,
+        161,
+        110,
+        2
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NombreMuyLargo",
+      "msg": "El nombre del camping excede 32 bytes"
+    },
+    {
+      "code": 6001,
+      "name": "SectorMuyLargo",
+      "msg": "El sector excede 24 bytes"
+    },
+    {
+      "code": 6002,
+      "name": "CapacidadInvalida",
+      "msg": "La capacidad debe estar entre 1 y 10 personas"
+    },
+    {
+      "code": 6003,
+      "name": "NochesInvalidas",
+      "msg": "La cantidad de noches debe ser al menos 1"
+    },
+    {
+      "code": 6004,
+      "name": "CantidadPersonasInvalida",
+      "msg": "La cantidad de personas debe ser al menos 1"
+    },
+    {
+      "code": 6005,
+      "name": "CapacidadExcedida",
+      "msg": "La cantidad de personas excede la capacidad de la parcela"
+    },
+    {
+      "code": 6006,
+      "name": "NoAutorizado",
+      "msg": "No estas autorizado para esta operacion"
+    },
+    {
+      "code": 6007,
+      "name": "ParcelaNoPerteneceACamping",
+      "msg": "La parcela no pertenece a este camping"
+    },
+    {
+      "code": 6008,
+      "name": "ReservaNoPerteneceAParcela",
+      "msg": "La reserva no pertenece a esta parcela"
+    },
+    {
+      "code": 6009,
+      "name": "ParcelaConReservasActivas",
+      "msg": "No se puede cerrar la parcela porque tiene reservas activas"
+    },
+    {
+      "code": 6010,
+      "name": "EstadoReservasInvalido",
+      "msg": "El estado de reservas activas es invalido"
+    }
+  ],
+  "types": [
+    {
+      "name": "Camping",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "idCliente",
-            "type": "u16"
+            "name": "admin",
+            "type": "pubkey"
           },
           {
             "name": "nombre",
             "type": "string"
           },
           {
-            "name": "compras",
-            "type": "u16"
+            "name": "total_parcelas",
+            "type": "u64"
           },
           {
-            "name": "historial",
-            "type": {
-              "vec": "publicKey"
-            }
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
     },
     {
-      "name": "Venta",
+      "name": "Parcela",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "sku",
+            "name": "camping",
+            "type": "pubkey"
+          },
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "sector",
             "type": "string"
           },
           {
-            "name": "descripcion",
-            "type": "string"
+            "name": "capacidad_personas",
+            "type": "u8"
           },
           {
-            "name": "monto",
-            "type": "u32"
+            "name": "reservas_activas",
+            "type": "u64"
+          },
+          {
+            "name": "total_reservas",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
-    }
-  ],
-  "errors": [
-    {
-      "code": 6000,
-      "name": "NoOwner",
-      "msg": "Error, no eres el owner del registro"
     },
     {
-      "code": 6001,
-      "name": "NoSKU",
-      "msg": "Error, la venta no esta en el historial del cliente"
+      "name": "Reserva",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "parcela",
+            "type": "pubkey"
+          },
+          {
+            "name": "pescador",
+            "type": "pubkey"
+          },
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "cantidad_personas",
+            "type": "u8"
+          },
+          {
+            "name": "noches",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
     }
   ]
 }

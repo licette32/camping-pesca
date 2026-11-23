@@ -1,78 +1,73 @@
-import { address, createNoopSigner, type Address } from '@solana/kit';
+﻿import { address, createNoopSigner, type Address } from '@solana/kit';
 import type { Connection } from '@solana/web3.js';
-import {
-  getCrearRegistroInstruction, getCrearClienteInstruction,
-  getRegistrarVentaInstruction, getCambiarMontoInstruction, getHacerDevolucionInstruction,
-} from '../../clients/js/src/generated';
-import { cadena, pdaCliente, pdaRegistro } from './pdas';
-import { siguienteId } from './lecturas';
+import { getInicializarCampingInstruction, getCrearParcelaInstruction, getCrearReservaInstruction, getModificarReservaInstruction, getCancelarReservaInstruction, getCerrarParcelaInstruction, fetchMaybeCamping, fetchMaybeParcela } from '../../clients/js/src/generated';
+import { pdaCamping, pdaParcela, pdaReserva } from './pdas';
+import { rpc } from './conexion';
 import { enviar, type WalletFirma, type OpcionesEnvio } from './tx';
 import { comprobarConfiguracion } from './seguridad';
-import { negocioValido, nombreValido, skuValido, descripcionValida, idValido, montoValido } from './validaciones';
+import { nombreCampingValido, sectorValido, capacidadValida, personasValidas, nochesValidas, idValido } from './validaciones';
 
-export function direccionDe(wallet: Pick<WalletFirma, 'publicKey'>): Address {
-  if (!wallet.publicKey) throw new Error('Conecta tu wallet primero.');
-  return address(wallet.publicKey.toBase58());
-}
+export function direccionDe(wallet: Pick<WalletFirma, 'publicKey'>): Address { if (!wallet.publicKey) throw new Error('Conecta tu wallet primero.'); return address(wallet.publicKey.toBase58()); }
+function firmante(wallet: WalletFirma) { comprobarConfiguracion(); return createNoopSigner(direccionDe(wallet)); }
 
-function firmante(wallet: WalletFirma) {
-  comprobarConfiguracion();
-  // Representa la identidad que la wallet firmará después; no contiene claves.
-  // Los roles finales los establece el builder generado del cliente actual.
-  return createNoopSigner(direccionDe(wallet));
-}
-
-/** Ejemplo resuelto: identidad, cuentas, instrucción y envío. */
-export async function crearRegistro(wallet: WalletFirma, connection: Connection, nombreNegocio: string, opciones?: OpcionesEnvio): Promise<string> {
-  nombreNegocio = negocioValido(nombreNegocio);
-  const owner = firmante(wallet);
-  const registro = pdaRegistro(nombreNegocio, owner.address);
-  const ix = getCrearRegistroInstruction({ owner, registro, nombreNegocio });
+export async function inicializarCamping(wallet: WalletFirma, connection: Connection, nombre: string, opciones?: OpcionesEnvio): Promise<string> {
+  nombre = nombreCampingValido(nombre);
+  const admin = firmante(wallet);
+  const camping = pdaCamping(admin.address);
+  const ix = getInicializarCampingInstruction({ camping, admin, nombre });
   return enviar(ix, wallet, connection, opciones);
 }
 
-/** Ejercicio 1 del día 4: crear la cuenta Cliente y actualizar Registro. */
-export async function crearCliente(wallet: WalletFirma, connection: Connection, nombreNegocio: string, nombre: string, opciones?: OpcionesEnvio): Promise<string> {
-  nombreNegocio = negocioValido(nombreNegocio);
-  nombre = nombreValido(nombre);
-  const owner = firmante(wallet);
-  const registro = pdaRegistro(nombreNegocio, owner.address);
-  const id = await siguienteId(nombreNegocio, owner.address);
-  const cliente = pdaCliente(registro, id);
-  const ix = getCrearClienteInstruction({ owner, registro, cliente, nombre });
+export async function crearParcela(wallet: WalletFirma, connection: Connection, sector: string, capacidadPersonas: number, opciones?: OpcionesEnvio): Promise<string> {
+  sector = sectorValido(sector); capacidadPersonas = capacidadValida(capacidadPersonas);
+  const admin = firmante(wallet);
+  const camping = pdaCamping(admin.address);
+  const cuenta = await fetchMaybeCamping(rpc, camping);
+  if (!cuenta.exists) throw new Error('Primero inicializa el camping.');
+  const id = cuenta.data.totalParcelas + 1n;
+  const parcela = pdaParcela(camping, id);
+  const ix = getCrearParcelaInstruction({ camping, parcela, admin, sector, capacidadPersonas });
   return enviar(ix, wallet, connection, opciones);
 }
 
-/** Ejercicio 2: mismo patrón con una Venta que depende del Cliente. */
-export async function registrarVenta(wallet: WalletFirma, connection: Connection, nombreNegocio: string, idCliente: number, sku: string, descripcion: string, monto: number, opciones?: OpcionesEnvio): Promise<string> {
-  nombreNegocio = negocioValido(nombreNegocio);
-  idCliente = idValido(idCliente);
-  sku = skuValido(sku);
-  descripcion = descripcionValida(descripcion);
-  monto = montoValido(monto);
-  const owner = firmante(wallet);
-  const { registro, cliente, venta } = cadena(nombreNegocio, owner.address, idCliente, sku);
-  const ix = getRegistrarVentaInstruction({ owner, registro, cliente, venta, idCliente, sku, descripcion, monto });
+export async function crearReserva(wallet: WalletFirma, connection: Connection, adminCamping: string, parcelaId: bigint | number | string, cantidadPersonas: number, noches: number, opciones?: OpcionesEnvio): Promise<string> {
+  const pid = idValido(parcelaId); cantidadPersonas = personasValidas(cantidadPersonas); noches = nochesValidas(noches);
+  const pescador = firmante(wallet);
+  const camping = pdaCamping(address(adminCamping.trim()));
+  const parcela = pdaParcela(camping, pid);
+  const pCuenta = await fetchMaybeParcela(rpc, parcela);
+  if (!pCuenta.exists) throw new Error('La parcela no existe.');
+  const rid = pCuenta.data.totalReservas + 1n;
+  const reserva = pdaReserva(parcela, rid);
+  const ix = getCrearReservaInstruction({ camping, parcela, reserva, pescador, cantidadPersonas, noches });
   return enviar(ix, wallet, connection, opciones);
 }
 
-export async function cambiarMonto(wallet: WalletFirma, connection: Connection, nombreNegocio: string, idCliente: number, sku: string, nuevoMonto: number, opciones?: OpcionesEnvio): Promise<string> {
-  nombreNegocio = negocioValido(nombreNegocio);
-  idCliente = idValido(idCliente);
-  sku = skuValido(sku);
-  nuevoMonto = montoValido(nuevoMonto);
-  const owner = firmante(wallet);
-  const { registro, cliente, venta } = cadena(nombreNegocio, owner.address, idCliente, sku);
-  const ix = getCambiarMontoInstruction({ owner, registro, cliente, venta, idCliente, sku, nuevoMonto });
+export async function modificarReserva(wallet: WalletFirma, connection: Connection, adminCamping: string, parcelaId: bigint | number | string, reservaId: bigint | number | string, nuevasPersonas: number, nuevasNoches: number, opciones?: OpcionesEnvio): Promise<string> {
+  const pid = idValido(parcelaId); const rid = idValido(reservaId); nuevasPersonas = personasValidas(nuevasPersonas); nuevasNoches = nochesValidas(nuevasNoches);
+  const pescador = firmante(wallet);
+  const camping = pdaCamping(address(adminCamping.trim()));
+  const parcela = pdaParcela(camping, pid);
+  const reserva = pdaReserva(parcela, rid);
+  const ix = getModificarReservaInstruction({ parcela, reserva, pescador, nuevasPersonas, nuevasNoches });
   return enviar(ix, wallet, connection, opciones);
 }
 
-export async function hacerDevolucion(wallet: WalletFirma, connection: Connection, nombreNegocio: string, idCliente: number, sku: string, opciones?: OpcionesEnvio): Promise<string> {
-  nombreNegocio = negocioValido(nombreNegocio);
-  idCliente = idValido(idCliente);
-  sku = skuValido(sku);
-  const owner = firmante(wallet);
-  const { registro, cliente, venta } = cadena(nombreNegocio, owner.address, idCliente, sku);
-  const ix = getHacerDevolucionInstruction({ owner, registro, cliente, venta, idCliente, sku });
+export async function cancelarReserva(wallet: WalletFirma, connection: Connection, adminCamping: string, parcelaId: bigint | number | string, reservaId: bigint | number | string, opciones?: OpcionesEnvio): Promise<string> {
+  const pid = idValido(parcelaId); const rid = idValido(reservaId);
+  const pescador = firmante(wallet);
+  const camping = pdaCamping(address(adminCamping.trim()));
+  const parcela = pdaParcela(camping, pid);
+  const reserva = pdaReserva(parcela, rid);
+  const ix = getCancelarReservaInstruction({ parcela, reserva, pescador });
+  return enviar(ix, wallet, connection, opciones);
+}
+
+export async function cerrarParcela(wallet: WalletFirma, connection: Connection, parcelaId: bigint | number | string, opciones?: OpcionesEnvio): Promise<string> {
+  const pid = idValido(parcelaId);
+  const admin = firmante(wallet);
+  const camping = pdaCamping(admin.address);
+  const parcela = pdaParcela(camping, pid);
+  const ix = getCerrarParcelaInstruction({ camping, parcela, admin });
   return enviar(ix, wallet, connection, opciones);
 }
